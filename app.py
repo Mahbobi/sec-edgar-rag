@@ -4,14 +4,18 @@ Serves a single-page UI and provides an API endpoint for querying
 the RAG pipeline. The final answer is produced in a single LLM call.
 """
 
+import asyncio
+import logging
 import time
 from contextlib import asynccontextmanager
+from functools import partial
 from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel, Field
 
 import config
 from embeddings import Embedder
@@ -19,9 +23,18 @@ from retriever import Retriever
 from vector_store import VectorStore
 from llm import generate_answer
 
+logger = logging.getLogger(__name__)
+
 # Shared state initialized at startup
 _retriever: Retriever | None = None
 _store: VectorStore | None = None
+
+
+class QueryRequest(BaseModel):
+    """Validated request body for the /api/query endpoint."""
+
+    question: str = Field(..., min_length=3, max_length=2000)
+    top_k: int = Field(default=config.TOP_K_FINAL, ge=1, le=50)
 
 
 @asynccontextmanager
@@ -70,20 +83,13 @@ async def index(request: Request):
 
 
 @app.post("/api/query")
-async def query(request: Request):
+async def query(body: QueryRequest):
     """Process a business question through the RAG pipeline.
 
     Accepts JSON: {"question": "...", "top_k": 10}
     Returns JSON with the answer, sources, and metadata.
     """
-    body = await request.json()
-    question = body.get("question", "").strip()
-
-    if not question:
-        return JSONResponse(
-            {"error": "Please provide a question."},
-            status_code=400,
-        )
+    question = body.question.strip()
 
     if not _retriever:
         return JSONResponse(
@@ -92,11 +98,15 @@ async def query(request: Request):
         )
 
     try:
-        top_k = body.get("top_k", config.TOP_K_FINAL)
+        # Run blocking retrieval + LLM in a thread pool to avoid
+        # blocking the async event loop during I/O-bound operations.
+        loop = asyncio.get_event_loop()
 
         # Step 1: Retrieve relevant chunks
         retrieval_start = time.time()
-        contexts, retrieval_info = _retriever.retrieve(question, top_k=top_k)
+        contexts, retrieval_info = await loop.run_in_executor(
+            None, partial(_retriever.retrieve, question, top_k=body.top_k)
+        )
         retrieval_time = time.time() - retrieval_start
 
         if not contexts:
@@ -108,7 +118,9 @@ async def query(request: Request):
             })
 
         # Step 2: Generate answer via single LLM call
-        llm_response = generate_answer(question, contexts)
+        llm_response = await loop.run_in_executor(
+            None, partial(generate_answer, question, contexts)
+        )
 
         # Step 3: Build source citations
         sources = [
@@ -140,9 +152,10 @@ async def query(request: Request):
             },
         })
 
-    except Exception as e:
+    except Exception:
+        logger.exception("Query processing failed")
         return JSONResponse(
-            {"error": f"Error processing query: {str(e)}"},
+            {"error": "An internal error occurred. Please try again."},
             status_code=500,
         )
 

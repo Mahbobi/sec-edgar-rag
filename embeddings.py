@@ -65,6 +65,9 @@ class Embedder:
         Returns:
             numpy array of shape (len(texts), 384), L2-normalized.
         """
+        if not texts:
+            return np.zeros((0, config.EMBEDDING_DIM), dtype=np.float32)
+
         encodings = self._tokenizer.encode_batch(texts)
 
         input_ids = np.array([e.ids for e in encodings], dtype=np.int64)

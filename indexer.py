@@ -8,6 +8,7 @@ in the SQLite vector store.
 import json
 import sys
 import time
+import traceback
 from pathlib import Path
 
 import config
@@ -140,6 +141,7 @@ def index_corpus(
 
         except Exception as e:
             errors.append(f"Error processing {filename}: {e}")
+            traceback.print_exc()
 
     elapsed = time.time() - start_time
 

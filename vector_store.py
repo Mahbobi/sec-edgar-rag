@@ -5,7 +5,6 @@ similarity is fast enough (<100ms). All embeddings are loaded into a
 single numpy matrix at query time for vectorized search.
 """
 
-import json
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,11 +37,12 @@ class VectorStore:
     def __init__(self, db_path: Path | None = None) -> None:
         self._db_path = db_path or config.DB_PATH
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(str(self._db_path))
+        self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._create_tables()
         self._embeddings_matrix: np.ndarray | None = None
         self._row_ids: list[int] = []
+        self._row_tickers: list[str] = []
 
     def _create_tables(self) -> None:
         self._conn.execute("""
@@ -119,7 +119,7 @@ class VectorStore:
         if not rows:
             self._embeddings_matrix = np.zeros((0, config.EMBEDDING_DIM))
             self._row_ids = []
-            self._row_tickers: list[str] = []
+            self._row_tickers = []
             return
 
         self._row_ids = [r["id"] for r in rows]
@@ -179,19 +179,24 @@ class VectorStore:
             top_indices = np.argpartition(filtered_scores, -num_results)[-num_results:]
             top_indices = top_indices[np.argsort(filtered_scores[top_indices])[::-1]]
 
-        # Fetch full records for top results
+        # Batch-fetch all matching rows in a single query (avoid N+1)
+        top_row_ids = [int(self._row_ids[idx]) for idx in top_indices]
+        placeholders = ",".join("?" * len(top_row_ids))
+        rows = self._conn.execute(
+            f"""SELECT id, text, company, ticker, filing_type, filing_date,
+                       section_id, section_name, chunk_index, source_file
+                FROM chunks WHERE id IN ({placeholders})""",
+            top_row_ids,
+        ).fetchall()
+        row_map = {r["id"]: r for r in rows}
+
+        # Build results in score-sorted order
         results = []
         for idx in top_indices:
             if filtered_scores[idx] <= -1.0:
                 continue
             row_id = self._row_ids[idx]
-            row = self._conn.execute(
-                """SELECT id, text, company, ticker, filing_type, filing_date,
-                          section_id, section_name, chunk_index, source_file
-                   FROM chunks WHERE id = ?""",
-                (row_id,),
-            ).fetchone()
-
+            row = row_map.get(row_id)
             if row is None:
                 continue
 
@@ -213,7 +218,9 @@ class VectorStore:
 
     def get_stats(self) -> dict:
         """Return index statistics."""
-        total = self._conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
+        total = self._conn.execute(
+            "SELECT COUNT(*) FROM chunks"
+        ).fetchone()[0]
         companies = self._conn.execute(
             "SELECT DISTINCT ticker FROM chunks ORDER BY ticker"
         ).fetchall()
@@ -223,8 +230,8 @@ class VectorStore:
 
         return {
             "total_chunks": total,
-            "companies": [r[0] for r in companies],
-            "filing_types": {r[0]: r[1] for r in filing_types},
+            "companies": [r["ticker"] for r in companies],
+            "filing_types": {r["filing_type"]: r[1] for r in filing_types},
         }
 
     def get_all_tickers(self) -> list[str]:
@@ -232,7 +239,7 @@ class VectorStore:
         rows = self._conn.execute(
             "SELECT DISTINCT ticker FROM chunks ORDER BY ticker"
         ).fetchall()
-        return [r[0] for r in rows]
+        return [r["ticker"] for r in rows]
 
     def get_ticker_company_map(self) -> dict[str, str]:
         """Return a mapping of ticker -> company name."""
@@ -247,6 +254,7 @@ class VectorStore:
         self._conn.commit()
         self._embeddings_matrix = None
         self._row_ids = []
+        self._row_tickers = []
 
     def close(self) -> None:
         """Close the database connection."""
