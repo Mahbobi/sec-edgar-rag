@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.env
+db/
+data/corpus/
+edgar_corpus.zip
+*.egg-info/
+.venv/
+venv/
+.claude/

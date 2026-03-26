@@ -1,0 +1,290 @@
+{
+  "test_cases": [
+    {
+      "question": "What are Apple's primary risk factors?",
+      "description": "Single company, specific section",
+      "company_recall": 1.0,
+      "section_recall": 1.0,
+      "detection_precision": 1.0,
+      "detection_recall": 1.0,
+      "mrr": 1.0,
+      "result_tickers": [
+        "AAPL",
+        "BAC",
+        "MRK",
+        "PFE",
+        "TSLA"
+      ],
+      "result_sections": [
+        "16",
+        "1A",
+        "6"
+      ],
+      "expected_tickers": [
+        "AAPL"
+      ],
+      "detected_companies": [
+        "AAPL"
+      ],
+      "num_results": 10
+    },
+    {
+      "question": "How has NVIDIA's revenue changed recently?",
+      "description": "Single company, financial data",
+      "company_recall": 1.0,
+      "section_recall": 0.0,
+      "detection_precision": 1.0,
+      "detection_recall": 1.0,
+      "mrr": 1.0,
+      "result_tickers": [
+        "NVDA",
+        "PFE"
+      ],
+      "result_sections": [
+        "5",
+        "6"
+      ],
+      "expected_tickers": [
+        "NVDA"
+      ],
+      "detected_companies": [
+        "NVDA"
+      ],
+      "num_results": 4
+    },
+    {
+      "question": "Compare risk factors of Apple and Tesla",
+      "description": "Multi-company comparison, specific section",
+      "company_recall": 1.0,
+      "section_recall": 1.0,
+      "detection_precision": 1.0,
+      "detection_recall": 1.0,
+      "mrr": 1.0,
+      "result_tickers": [
+        "AAPL",
+        "JNJ",
+        "TSLA"
+      ],
+      "result_sections": [
+        "16",
+        "1A"
+      ],
+      "expected_tickers": [
+        "AAPL",
+        "TSLA"
+      ],
+      "detected_companies": [
+        "AAPL",
+        "TSLA"
+      ],
+      "num_results": 10
+    },
+    {
+      "question": "What is JPMorgan's business strategy?",
+      "description": "Single company, business overview",
+      "company_recall": 1.0,
+      "section_recall": 0.5,
+      "detection_precision": 1.0,
+      "detection_recall": 1.0,
+      "mrr": 1.0,
+      "result_tickers": [
+        "JPM"
+      ],
+      "result_sections": [
+        "1",
+        "15",
+        "1A",
+        "6"
+      ],
+      "expected_tickers": [
+        "JPM"
+      ],
+      "detected_companies": [
+        "JPM"
+      ],
+      "num_results": 4
+    },
+    {
+      "question": "What cybersecurity risks does Microsoft face?",
+      "description": "Single company, cybersecurity focus",
+      "company_recall": 1.0,
+      "section_recall": 1.0,
+      "detection_precision": 1.0,
+      "detection_recall": 1.0,
+      "mrr": 1.0,
+      "result_tickers": [
+        "BRK",
+        "JNJ",
+        "MSFT",
+        "PFE",
+        "TSLA"
+      ],
+      "result_sections": [
+        "1A",
+        "1B",
+        "1C",
+        "4"
+      ],
+      "expected_tickers": [
+        "MSFT"
+      ],
+      "detected_companies": [
+        "MSFT"
+      ],
+      "num_results": 10
+    },
+    {
+      "question": "Compare the financial performance of Google and Meta",
+      "description": "Multi-company financial comparison",
+      "company_recall": 1.0,
+      "section_recall": 0.5,
+      "detection_precision": 1.0,
+      "detection_recall": 1.0,
+      "mrr": 1.0,
+      "result_tickers": [
+        "GOOG",
+        "META",
+        "MSFT"
+      ],
+      "result_sections": [
+        "16",
+        "6",
+        "7"
+      ],
+      "expected_tickers": [
+        "GOOG",
+        "META"
+      ],
+      "detected_companies": [
+        "GOOG",
+        "META"
+      ],
+      "num_results": 9
+    },
+    {
+      "question": "What legal proceedings are pending against pharmaceutical companies?",
+      "description": "Multi-company, legal focus",
+      "company_recall": 0.4,
+      "section_recall": 0.5,
+      "detection_precision": 0.0,
+      "detection_recall": 0.0,
+      "mrr": 0.5,
+      "result_tickers": [
+        "JNJ",
+        "PFE",
+        "WMT"
+      ],
+      "result_sections": [
+        "3",
+        "5",
+        "6",
+        "7",
+        "8"
+      ],
+      "expected_tickers": [
+        "PFE",
+        "JNJ",
+        "MRK",
+        "LLY",
+        "ABBV"
+      ],
+      "detected_companies": [],
+      "num_results": 9
+    },
+    {
+      "question": "What is Tesla's management discussion of operations?",
+      "description": "Single company, MD&A",
+      "company_recall": 1.0,
+      "section_recall": 1.0,
+      "detection_precision": 1.0,
+      "detection_recall": 1.0,
+      "mrr": 1.0,
+      "result_tickers": [
+        "DE",
+        "TSLA"
+      ],
+      "result_sections": [
+        "1",
+        "16",
+        "1A",
+        "5",
+        "6",
+        "7",
+        "8"
+      ],
+      "expected_tickers": [
+        "TSLA"
+      ],
+      "detected_companies": [
+        "TSLA"
+      ],
+      "num_results": 8
+    },
+    {
+      "question": "How do the major banks compare in terms of risk exposure?",
+      "description": "Multi-company banking sector",
+      "company_recall": 0.75,
+      "section_recall": 0.0,
+      "detection_precision": 0.0,
+      "detection_recall": 0.0,
+      "mrr": 1.0,
+      "result_tickers": [
+        "AXP",
+        "BAC",
+        "GS",
+        "JPM"
+      ],
+      "result_sections": [
+        "",
+        "15",
+        "2",
+        "6",
+        "7"
+      ],
+      "expected_tickers": [
+        "JPM",
+        "BAC",
+        "GS",
+        "MS"
+      ],
+      "detected_companies": [],
+      "num_results": 8
+    },
+    {
+      "question": "What is Amazon's competitive position in cloud computing?",
+      "description": "Single company, competitive analysis",
+      "company_recall": 1.0,
+      "section_recall": 0.5,
+      "detection_precision": 1.0,
+      "detection_recall": 1.0,
+      "mrr": 1.0,
+      "result_tickers": [
+        "AMZN",
+        "CSCO",
+        "IBM",
+        "MSFT",
+        "ORCL"
+      ],
+      "result_sections": [
+        "",
+        "1",
+        "7",
+        "8"
+      ],
+      "expected_tickers": [
+        "AMZN"
+      ],
+      "detected_companies": [
+        "AMZN"
+      ],
+      "num_results": 9
+    }
+  ],
+  "aggregate": {
+    "avg_company_recall": 0.915,
+    "avg_section_recall": 0.6,
+    "avg_mrr": 0.95,
+    "avg_detection_recall": 0.8,
+    "total_cases": 10
+  }
+}

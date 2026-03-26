@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEC EDGAR RAG — Financial Filing Q&A</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>SEC EDGAR RAG System</h1>
+        <p class="subtitle">Ask business questions about SEC 10-K and 10-Q filings from 54 major US public companies</p>
+    </header>
+
+    <main>
+        <section class="query-section">
+            <div class="input-group">
+                <input
+                    type="text"
+                    id="question-input"
+                    placeholder="Ask a business question about SEC filings..."
+                    autofocus
+                />
+                <button id="ask-btn" onclick="submitQuestion()">Ask</button>
+            </div>
+
+            <div class="examples">
+                <span class="examples-label">Try:</span>
+                <button class="example-btn" onclick="useExample(this)">What are the primary risk factors facing Apple, Tesla, and JPMorgan, and how do they compare?</button>
+                <button class="example-btn" onclick="useExample(this)">How has NVIDIA's revenue and growth outlook changed over the last two years?</button>
+                <button class="example-btn" onclick="useExample(this)">What regulatory risks do the major pharmaceutical companies face, and how are they addressing them?</button>
+            </div>
+        </section>
+
+        <section id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Retrieving relevant filings and generating answer...</p>
+        </section>
+
+        <section id="result" class="result hidden">
+            <div class="answer-section">
+                <h2>Answer</h2>
+                <div id="answer-content" class="answer-content"></div>
+            </div>
+
+            <details class="sources-section">
+                <summary>
+                    <h3>Sources Used (<span id="source-count">0</span> excerpts)</h3>
+                </summary>
+                <div id="sources-list" class="sources-list"></div>
+            </details>
+
+            <div class="metadata-section">
+                <div id="metadata-content" class="metadata-content"></div>
+            </div>
+        </section>
+
+        <section id="error" class="error hidden">
+            <p id="error-message"></p>
+        </section>
+    </main>
+
+    <footer>
+        <p>Powered by Eliza &middot; Built for SEC EDGAR filing analysis</p>
+    </footer>
+
+    <!-- Minimal markdown rendering -->
+    <script>
+        function simpleMarkdown(text) {
+            // Headings
+            text = text.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+            text = text.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+            text = text.replace(/^# (.+)$/gm, '<h2>$1</h2>');
+            // Bold
+            text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            // Italic
+            text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            // Bullet lists
+            text = text.replace(/^- (.+)$/gm, '<li>$1</li>');
+            text = text.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+            // Numbered lists
+            text = text.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+            // Tables (basic)
+            text = text.replace(/\|(.+)\|/g, function(match) {
+                if (match.match(/^[\|\s\-:]+$/)) return '';
+                const cells = match.split('|').filter(c => c.trim());
+                return '<tr>' + cells.map(c => '<td>' + c.trim() + '</td>').join('') + '</tr>';
+            });
+            text = text.replace(/(<tr>.*<\/tr>\n?)+/g, '<table>$&</table>');
+            // Paragraphs
+            text = text.replace(/\n\n/g, '</p><p>');
+            text = '<p>' + text + '</p>';
+            // Clean up
+            text = text.replace(/<p><h/g, '<h');
+            text = text.replace(/<\/h(\d)><\/p>/g, '</h$1>');
+            text = text.replace(/<p><ul>/g, '<ul>');
+            text = text.replace(/<\/ul><\/p>/g, '</ul>');
+            text = text.replace(/<p><table>/g, '<table>');
+            text = text.replace(/<\/table><\/p>/g, '</table>');
+            text = text.replace(/<p>\s*<\/p>/g, '');
+            return text;
+        }
+
+        async function submitQuestion() {
+            const input = document.getElementById('question-input');
+            const question = input.value.trim();
+            if (!question) return;
+
+            // Show loading, hide results
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('result').classList.add('hidden');
+            document.getElementById('error').classList.add('hidden');
+            document.getElementById('ask-btn').disabled = true;
+
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({question})
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Render answer
+                document.getElementById('answer-content').innerHTML = simpleMarkdown(data.answer);
+
+                // Render sources
+                const sourcesList = document.getElementById('sources-list');
+                sourcesList.innerHTML = '';
+                document.getElementById('source-count').textContent = data.sources.length;
+
+                data.sources.forEach((src, i) => {
+                    const div = document.createElement('div');
+                    div.className = 'source-item';
+                    div.innerHTML = `
+                        <div class="source-header">
+                            <strong>${src.company} (${src.ticker})</strong>
+                            <span class="source-meta">${src.filing_type} | ${src.filing_date} | ${src.section}</span>
+                            <span class="source-score">Score: ${src.relevance_score}</span>
+                        </div>
+                        <p class="source-preview">${src.excerpt_preview}</p>
+                    `;
+                    sourcesList.appendChild(div);
+                });
+
+                // Render metadata
+                const meta = data.metadata;
+                document.getElementById('metadata-content').innerHTML = `
+                    Model: <strong>${meta.model}</strong> |
+                    Tokens: ${meta.input_tokens} in / ${meta.output_tokens} out |
+                    Retrieval: ${meta.retrieval_latency_seconds}s |
+                    LLM: ${meta.llm_latency_seconds}s |
+                    Companies: ${meta.retrieval_info.companies_in_results.join(', ')}
+                `;
+
+                // Show results
+                document.getElementById('result').classList.remove('hidden');
+
+            } catch (err) {
+                document.getElementById('error-message').textContent = err.message;
+                document.getElementById('error').classList.remove('hidden');
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('ask-btn').disabled = false;
+            }
+        }
+
+        function useExample(btn) {
+            document.getElementById('question-input').value = btn.textContent;
+            submitQuestion();
+        }
+
+        // Submit on Enter
+        document.getElementById('question-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') submitQuestion();
+        });
+    </script>
+</body>
+</html>
