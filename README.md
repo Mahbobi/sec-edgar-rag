@@ -10,7 +10,7 @@ The system accepts a natural-language business question, retrieves relevant fili
 
 ### Prerequisites
 - Python 3.10+
-- An [Anthropic API key](https://console.anthropic.com/)
+- A [Google API key](https://aistudio.google.com/apikey) (free tier — no billing required)
 - ~200MB disk for the vector index
 - The `edgar_corpus.zip` dataset (provided with the assessment)
 
@@ -26,7 +26,7 @@ pip install -r requirements.txt
 
 # 3. Configure your API key
 cp .env.example .env
-# Open .env in a text editor and paste your ANTHROPIC_API_KEY
+# Open .env in a text editor and paste your GOOGLE_API_KEY
 
 # 4. Download and extract the corpus
 # Place edgar_corpus.zip in the project root, then:
@@ -59,7 +59,7 @@ User Question
      │                headers (company, filing type, date, section)
      │
      ▼
-[Single LLM Call] ── Anthropic Claude Sonnet 4
+[Single LLM Call] ── Google Gemini 2.5 Flash Lite
      │                one API request produces the full answer
      │                grounded exclusively in retrieved excerpts
      │
@@ -71,7 +71,7 @@ Structured Answer with Citations
 
 1. **Indexing (one-time):** Each SEC filing is parsed for its structured header (company, ticker, filing type, date), split into SEC section-aware chunks (~800 tokens each), embedded using all-MiniLM-L6-v2, and stored in a SQLite vector database.
 
-2. **Retrieval:** The user's question is embedded with the same model and compared against all chunks via cosine similarity. The retriever detects company names/tickers in the query, boosts relevant sections (e.g., "risk" → Item 1A), and applies diversity re-ranking to ensure balanced multi-company coverage.
+2. **Retrieval:** The user's question is embedded with the same model and compared against all chunks via cosine similarity. The retriever detects company names/tickers in the query, boosts relevant sections (e.g., "risk" queries → boost Item 1A), and applies diversity re-ranking to ensure balanced multi-company coverage.
 
 3. **Answer Generation:** Retrieved excerpts are injected into a structured prompt with metadata headers. A single LLM API call produces a grounded, well-organized answer with filing citations.
 
@@ -195,6 +195,7 @@ sec-edgar-rag/
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
+| LLM | Gemini 2.5 Flash Lite (free tier) | Fast, capable, zero API cost — makes the system accessible to any user without billing setup |
 | Vector Store | SQLite + numpy | ChromaDB incompatible with Python 3.14; custom store is 200 lines, zero-dep, fast for <20k chunks |
 | Embeddings | ONNX all-MiniLM-L6-v2 | Local inference, no API costs, 384-dim, good semantic quality |
 | Chunking | SEC section-aware, ~800 tokens | Respects Item 1/1A/7/8 structure; section metadata enables targeted retrieval |

@@ -1,13 +1,14 @@
-"""LLM integration — single Anthropic API call for answer generation.
+"""LLM integration — single Google Gemini API call for answer generation.
 
-Wraps the Anthropic messages API to produce a grounded answer from
+Wraps the Google GenAI SDK to produce a grounded answer from
 the retrieved filing excerpts in exactly one API request.
 """
 
 import time
 from dataclasses import dataclass
 
-import anthropic
+from google import genai
+from google.genai import types
 
 import config
 from prompt_template import build_messages
@@ -31,7 +32,7 @@ def generate_answer(
     contexts: list[ChunkRecord],
     model: str | None = None,
 ) -> LLMResponse:
-    """Generate a grounded answer using a single Anthropic API call.
+    """Generate a grounded answer using a single Gemini API call.
 
     Args:
         question: The user's business question.
@@ -40,36 +41,36 @@ def generate_answer(
 
     Returns:
         LLMResponse with the answer and usage metadata.
-
-    Raises:
-        anthropic.APIError: If the API call fails.
     """
-    model = model or config.LLM_MODEL
+    model_name = model or config.LLM_MODEL
     system_msg, user_msg = build_messages(question, contexts)
 
-    # Let the client discover the API key from env/config automatically.
-    # Only pass explicitly if set in our config.
-    kwargs = {}
-    if config.ANTHROPIC_API_KEY:
-        kwargs["api_key"] = config.ANTHROPIC_API_KEY
-    client = anthropic.Anthropic(**kwargs)
+    client = genai.Client(api_key=config.GOOGLE_API_KEY)
 
     start = time.time()
-    response = client.messages.create(
-        model=model,
-        max_tokens=config.LLM_MAX_TOKENS,
-        system=system_msg,
-        messages=[{"role": "user", "content": user_msg}],
+    response = client.models.generate_content(
+        model=model_name,
+        contents=user_msg,
+        config=types.GenerateContentConfig(
+            system_instruction=system_msg,
+            max_output_tokens=config.LLM_MAX_TOKENS,
+            temperature=0.2,
+        ),
     )
     latency = time.time() - start
 
-    answer_text = response.content[0].text if response.content else ""
+    answer_text = response.text if response.text else ""
+
+    # Extract token usage from response metadata
+    usage = getattr(response, "usage_metadata", None)
+    input_tokens = getattr(usage, "prompt_token_count", 0) if usage else 0
+    output_tokens = getattr(usage, "candidates_token_count", 0) if usage else 0
 
     return LLMResponse(
         answer=answer_text,
-        model=response.model,
-        input_tokens=response.usage.input_tokens,
-        output_tokens=response.usage.output_tokens,
+        model=model_name,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
         latency_seconds=round(latency, 2),
         contexts_used=len(contexts),
     )

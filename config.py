@@ -29,8 +29,8 @@ MAX_CHUNKS_PER_COMPANY = 4
 CONTEXT_TOKEN_BUDGET = 8000
 
 # LLM
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-LLM_MODEL = "claude-sonnet-4-20250514"
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
+LLM_MODEL = "gemini-2.5-flash-lite"
 LLM_MAX_TOKENS = 4096
 
 # Server

@@ -31,11 +31,13 @@
 
 **Why tiktoken for measurement:** tiktoken's cl100k_base encoding provides a good-enough approximation for budget management across LLM providers. The exact token count doesn't need to match the target model — it's used for sizing guidance.
 
-### 4. LLM: Anthropic Sonnet (Single Call)
+### 4. LLM: Google Gemini 2.5 Flash Lite (Single Call)
 
-**Decision:** Used the Anthropic Sonnet model for the final answer generation, with the entire pipeline producing one API request.
+**Decision:** Used the Google Gemini 2.5 Flash Lite model for the final answer generation, with the entire pipeline producing one API request.
 
-**Why Sonnet over Opus:** Sonnet is sufficient for structured extraction from provided text — the task is grounding and organization, not novel reasoning. Sonnet is faster (~5-10s vs 15-30s) and more cost-effective per token. For a live demo, response time matters.
+**Why Gemini Flash:** Gemini 2.5 Flash Lite offers a generous free tier with no billing setup required, making the system accessible to anyone who wants to run it. For a RAG pipeline where the heavy lifting is done by retrieval — the LLM's job is to read provided excerpts and organize a well-structured answer — Gemini Flash provides more than sufficient quality at zero cost. This keeps the total operating cost of the system at $0 (local embeddings + free LLM tier).
+
+**Why not a paid model (GPT-4, Claude, etc.):** In a production RAG system, cost-per-query directly impacts scalability. If 100 analysts run 50 queries/day, a $0.01/query model costs $1,500/month. Gemini Flash eliminates this cost entirely. The quality difference for grounded summarization (answering from provided text) is negligible compared to open-ended reasoning tasks.
 
 **Why single call works:** All retrieval, ranking, and context assembly happens before the API call. The model receives a fully constructed prompt with 8-12 relevant excerpts and metadata. No chains, tools, or multi-turn — one shot. This satisfies the assessment constraint and demonstrates that good retrieval makes complex orchestration unnecessary.
 
@@ -65,7 +67,7 @@
 
 4. **Embedding model quality is sufficient:** all-MiniLM-L6-v2 is a general-purpose sentence embedding model. A finance-specific model (e.g., FinBERT) might perform better on specialized terminology, but MiniLM provides a good baseline.
 
-5. **Single LLM call context budget:** With 8-12 chunks at ~800 tokens each, total context is ~6-10k tokens. The model supports 200k tokens, so we have significant headroom. The token budget (8000 for context) is conservative by design.
+5. **Single LLM call context budget:** With 8-12 chunks at ~800 tokens each, total context is ~6-10k tokens. Gemini Flash supports 1M tokens, so we have significant headroom. The token budget (8000 for context) is conservative by design.
 
 ---
 
